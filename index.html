@@ -28,6 +28,12 @@
             </svg>
         );
 
+        const ChevronRight = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9,18 15,12 9,6"></polyline>
+            </svg>
+        );
+
         const Volume2 = ({ size = 20 }) => (
             <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"></polygon>
@@ -52,10 +58,21 @@
         const VocabularyBuilder = () => {
             const [currentWeek, setCurrentWeek] = useState(0);
             const [currentExample, setCurrentExample] = useState(0);
-            const [userProfile, setUserProfile] = useState({ difficulty: 0 });
+            
+            // Load difficulty from localStorage with persistent storage
+            const [userProfile, setUserProfile] = useState(() => ({
+                difficulty: parseInt(localStorage.getItem('vocabDifficulty') || '0')
+            }));
+            
             const [startDate] = useState(() => {
                 const saved = localStorage.getItem('vocabStartDate');
                 return saved ? new Date(saved) : new Date();
+            });
+
+            // Load skipped words from localStorage
+            const [skippedWords, setSkippedWords] = useState(() => {
+                const saved = localStorage.getItem('vocabSkippedWords');
+                return saved ? JSON.parse(saved) : [];
             });
 
             // Calculate current week and day based on actual time elapsed
@@ -64,7 +81,7 @@
                 const timeDiff = now.getTime() - startDate.getTime();
                 const daysPassed = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
                 
-                const calculatedWeek = Math.floor(daysPassed / 7);
+                const calculatedWeek = Math.floor(daysPassed / 7) + skippedWords.length;
                 const calculatedExample = daysPassed % 7;
                 
                 setCurrentWeek(calculatedWeek);
@@ -72,7 +89,7 @@
                 
                 // Save start date for persistence
                 localStorage.setItem('vocabStartDate', startDate.toISOString());
-            }, [startDate]);
+            }, [startDate, skippedWords.length]);
 
             // Conversational vocabulary database with difficulty ratings
             const vocabularyDatabase = [
@@ -190,12 +207,25 @@
 
             const currentWord = getWeeklyWord(currentWeek);
 
-            // Difficulty adjustment
+            // Difficulty adjustment with localStorage persistence
             const adjustDifficulty = (direction) => {
+                const newDifficulty = Math.max(-2, Math.min(2, userProfile.difficulty + direction));
                 setUserProfile(prev => ({
                     ...prev,
-                    difficulty: Math.max(-2, Math.min(2, prev.difficulty + direction))
+                    difficulty: newDifficulty
                 }));
+                localStorage.setItem('vocabDifficulty', newDifficulty.toString());
+            };
+
+            // Skip current word function
+            const skipCurrentWord = () => {
+                const newSkippedWords = [...skippedWords, currentWord.word];
+                setSkippedWords(newSkippedWords);
+                localStorage.setItem('vocabSkippedWords', JSON.stringify(newSkippedWords));
+                
+                // Move to next word immediately
+                setCurrentWeek(currentWeek + 1);
+                setCurrentExample(0);
             };
 
             // Audio pronunciation
@@ -262,16 +292,20 @@
                     ),
 
                     // Controls
-                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" },
+                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" },
                         // Week Navigation
                         React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20" },
-                            React.createElement('h4', { className: "font-semibold mb-3" }, "Review Past Words"),
-                            React.createElement('div', { className: "flex justify-start" },
+                            React.createElement('h4', { className: "font-semibold mb-3" }, "Navigation"),
+                            React.createElement('div', { className: "flex flex-col gap-2" },
                                 React.createElement('button', {
                                     onClick: () => setCurrentWeek(Math.max(0, currentWeek - 1)),
                                     disabled: currentWeek === 0,
-                                    className: "px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
-                                }, React.createElement(ChevronLeft), "Previous Week")
+                                    className: "px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center justify-center gap-2"
+                                }, React.createElement(ChevronLeft), "Previous Week"),
+                                React.createElement('button', {
+                                    onClick: skipCurrentWord,
+                                    className: "px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                }, React.createElement(ChevronRight), "Skip Word")
                             ),
                             React.createElement('p', { className: "text-xs text-blue-200 mt-2" }, "Words advance automatically every 7 days")
                         ),
@@ -291,6 +325,17 @@
                                     onClick: () => adjustDifficulty(1),
                                     className: "flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                                 }, React.createElement(TrendingUp, { size: 16 }), "Harder")
+                            ),
+                            React.createElement('p', { className: "text-xs text-blue-200 mt-2" }, "Saved automatically")
+                        ),
+
+                        // Skip Info
+                        React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20" },
+                            React.createElement('h4', { className: "font-semibold mb-3" }, "Learning Stats"),
+                            React.createElement('div', { className: "text-sm space-y-1" },
+                                React.createElement('p', null, `Words learned: ${currentWeek + 1}`),
+                                React.createElement('p', null, `Words skipped: ${skippedWords.length}`),
+                                React.createElement('p', { className: "text-green-400" }, `Total progress: ${currentWeek + 1 + skippedWords.length} words`)
                             )
                         )
                     ),
@@ -299,7 +344,7 @@
                     React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 mb-6" },
                         React.createElement('div', { className: "flex justify-between items-center mb-4" },
                             React.createElement('h4', { className: "font-semibold" }, "Weekly Progress"),
-                            React.createElement('span', { className: "text-sm" }, `${currentWeek + 1} weeks completed`)
+                            React.createElement('span', { className: "text-sm" }, `Week ${currentWeek + 1}`)
                         ),
                         React.createElement('div', { className: "grid grid-cols-7 gap-1 mb-4" },
                             Array.from({ length: 7 }, (_, i) =>
@@ -320,7 +365,7 @@
 
                     // Audio Note
                     React.createElement('div', { className: "text-center text-sm text-blue-200" },
-                        React.createElement('p', null, "🔊 Click the volume button to hear pronunciation (uses device's built-in voice)")
+                        React.createElement('p', null, "🔊 Click the volume button to hear pronunciation • Skip words you already know well")
                     )
                 )
             );
