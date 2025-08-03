@@ -13,6 +13,18 @@
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
         }
+        .word-fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .example-highlight {
+            background: linear-gradient(120deg, rgba(255, 255, 0, 0.3) 0%, rgba(255, 255, 0, 0.1) 100%);
+            padding: 0 4px;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -21,7 +33,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Lucide React icons (simplified SVG versions)
+        // Enhanced SVG icons
         const ChevronLeft = () => (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="15,18 9,12 15,6"></polyline>
@@ -62,10 +74,27 @@
             </svg>
         );
 
+        const BookOpen = ({ size = 16 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+        );
+
+        const Star = ({ size = 16, filled = false }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+            </svg>
+        );
+
         const VocabularyBuilder = () => {
             const [currentWeek, setCurrentWeek] = useState(0);
             const [currentExample, setCurrentExample] = useState(0);
             const [timeUntilMidnight, setTimeUntilMidnight] = useState('');
+            const [favoriteWords, setFavoriteWords] = useState(() => {
+                const saved = localStorage.getItem('favoriteWords');
+                return saved ? JSON.parse(saved) : [];
+            });
             
             // Load difficulty from localStorage with persistent storage
             const [userProfile, setUserProfile] = useState(() => ({
@@ -143,7 +172,7 @@
                 return () => clearInterval(interval);
             }, [startDate, skippedWords.length]);
 
-            // Conversational vocabulary database with difficulty ratings
+            // Expanded vocabulary database with 30 words (you can expand to 100)
             const vocabularyDatabase = [
                 {
                     word: "articulate",
@@ -151,14 +180,15 @@
                     partOfSpeech: "adjective/verb",
                     meaning: "expressing thoughts clearly and effectively; to speak distinctly",
                     difficulty: -2,
+                    etymology: "From Latin 'articulatus' meaning 'jointed' or 'distinct'",
                     examples: [
-                        "Maya found herself struggling to articulate the weight of her mother's expectations during dinner conversations that stretched long into the evening, each word carefully chosen yet never quite capturing the complexity of her feelings about the arranged marriage proposal.",
-                        "The professor's articulate explanation of quantum mechanics reminded Elena of her father's patient way of describing the monsoon seasons—both men possessed that rare gift of making the incomprehensible feel suddenly, beautifully clear.",
-                        "In the cramped apartment above the grocery store, Ravi watched his daughter articulate her dreams of medical school with such precision that he could almost see the stethoscope around her neck, though his own words of encouragement felt clumsy in comparison.",
-                        "The way Kamala could articulate the exact shade of homesickness—not the sharp pang of missing a person, but the dull ache of missing a version of yourself—made her friends understand why she spent hours writing letters home.",
-                        "During the neighborhood association meeting, Mrs. Chen's articulate defense of the community garden revealed not just her passion for growing vegetables, but her deep understanding of how shared spaces could heal the loneliness of urban life.",
-                        "As the wedding approached, Deepa found it increasingly difficult to articulate why she felt like she was watching her life happen to someone else, the Bengali words for doubt feeling too heavy on her tongue.",
-                        "The child's articulate questions about why his grandfather only spoke Tamil at home but English everywhere else revealed a wisdom that made the adults in the room fall silent with recognition."
+                        "Maya found herself struggling to articulate the weight of her mother's expectations during dinner conversations that stretched long into the evening.",
+                        "The professor's articulate explanation of quantum mechanics reminded Elena of her father's patient way of describing the monsoon seasons.",
+                        "In the cramped apartment above the grocery store, Ravi watched his daughter articulate her dreams of medical school with such precision.",
+                        "The way Kamala could articulate the exact shade of homesickness made her friends understand why she spent hours writing letters home.",
+                        "During the neighborhood association meeting, Mrs. Chen's articulate defense of the community garden revealed her deep understanding.",
+                        "As the wedding approached, Deepa found it increasingly difficult to articulate why she felt like she was watching her life happen to someone else.",
+                        "The child's articulate questions about why his grandfather only spoke Tamil at home revealed a wisdom that made the adults fall silent."
                     ]
                 },
                 {
@@ -167,14 +197,15 @@
                     partOfSpeech: "adjective",
                     meaning: "having subtle differences in expression, meaning, or response",
                     difficulty: -1,
+                    etymology: "From French 'nuance' meaning 'shade' or 'subtle difference'",
                     examples: [
-                        "Priya's relationship with her mother-in-law required a nuanced understanding of when silence meant disapproval and when it meant deep thought, a skill she was still learning after three years of marriage.",
-                        "The flavors in her grandmother's curry were impossibly nuanced—cardamom that whispered rather than shouted, turmeric that painted warmth without overwhelming, each spice added with the precision of someone who had perfected the recipe across decades.",
-                        "Living between two cultures demanded a nuanced approach to identity that Arjun's American-born friends couldn't quite grasp, the way he could shift between versions of himself as naturally as changing languages.",
-                        "The nuanced way her father expressed love—through extra helpings of rice, through staying up late to help with homework, through never saying the words directly—had taken her years to recognize and appreciate.",
-                        "In the bookstore where she worked, Meera developed a nuanced understanding of her customers' needs, knowing that the woman who browsed poetry on Tuesdays was working through grief, while the man who lingered in philosophy was questioning his career.",
-                        "The conflict between her Indian parents' expectations and her own ambitions required nuanced navigation, each conversation a careful dance between respect and rebellion.",
-                        "His writing captured the nuanced experience of growing up bilingual, where some emotions could only be expressed in one language, leaving parts of himself perpetually untranslatable."
+                        "Priya's relationship with her mother-in-law required a nuanced understanding of when silence meant disapproval and when it meant deep thought.",
+                        "The flavors in her grandmother's curry were impossibly nuanced—cardamom that whispered rather than shouted, turmeric that painted warmth.",
+                        "Living between two cultures demanded a nuanced approach to identity that Arjun's American-born friends couldn't quite grasp.",
+                        "The nuanced way her father expressed love—through extra helpings of rice, through staying up late to help with homework.",
+                        "In the bookstore where she worked, Meera developed a nuanced understanding of her customers' needs.",
+                        "The conflict between her Indian parents' expectations and her own ambitions required nuanced navigation.",
+                        "His writing captured the nuanced experience of growing up bilingual, where some emotions could only be expressed in one language."
                     ]
                 },
                 {
@@ -183,14 +214,15 @@
                     partOfSpeech: "adjective",
                     meaning: "practical rather than idealistic; focused on what works",
                     difficulty: 0,
+                    etymology: "From Greek 'pragmatikos' meaning 'fit for business'",
                     examples: [
-                        "After years of dreaming about returning to India, Sunita took a pragmatic approach to her parents' aging, accepting that love sometimes meant staying in Boston rather than following romantic notions of homeland.",
-                        "The pragmatic decision to rent out the basement apartment helped the Patels maintain their mortgage, though it meant sharing their American dream with strangers who left curry smells in the hallway.",
-                        "Reshma's pragmatic nature emerged during wedding planning when she suggested buffet-style service over plated dinners, knowing that feeding three hundred guests required logistics, not just tradition.",
-                        "His mother's pragmatic advice about choosing a spouse—'Love will grow, but compatibility must exist from the beginning'—seemed cold until he watched friends divorce over irreconcilable differences.",
-                        "The pragmatic choice would have been to major in engineering like his brothers, but Vikram's heart pulled him toward literature, creating a tension between family expectations and personal truth.",
-                        "In the aftermath of her father's stroke, Kavya discovered her own pragmatic strength, navigating insurance forms and medical decisions with a competence that surprised everyone, including herself.",
-                        "The pragmatic arrangement of living with his in-laws during the first years of marriage allowed them to save money for a house, though it required daily negotiations of privacy and independence."
+                        "After years of dreaming about returning to India, Sunita took a pragmatic approach to her parents' aging.",
+                        "The pragmatic decision to rent out the basement apartment helped the Patels maintain their mortgage.",
+                        "Reshma's pragmatic nature emerged during wedding planning when she suggested buffet-style service over plated dinners.",
+                        "His mother's pragmatic advice about choosing a spouse seemed cold until he watched friends divorce over differences.",
+                        "The pragmatic choice would have been to major in engineering like his brothers, but Vikram's heart pulled him toward literature.",
+                        "In the aftermath of her father's stroke, Kavya discovered her own pragmatic strength.",
+                        "The pragmatic arrangement of living with his in-laws during the first years of marriage allowed them to save money."
                     ]
                 },
                 {
@@ -199,14 +231,15 @@
                     partOfSpeech: "adjective",
                     meaning: "evoking interest or attention in a powerful way; convincing",
                     difficulty: 0,
+                    etymology: "From Latin 'compellere' meaning 'to drive together'",
                     examples: [
-                        "There was something compelling about the way her aunt told stories of their village in Punjab, each detail painted with such vivid precision that Anita could smell the mustard fields and hear the temple bells across the ocean.",
-                        "The compelling argument for keeping the family restaurant open wasn't financial—it was the way customers spoke of the place as their refuge, where the dal tasted like their mother's and the owner remembered their names.",
-                        "His compelling presence at family gatherings had nothing to do with being the loudest voice; instead, it was his ability to listen deeply, making even the shyest cousins feel heard and valued.",
-                        "The most compelling reason to learn Hindi wasn't to please her grandparents, but to understand the poetry they quoted, to access the emotional language that English couldn't quite capture.",
-                        "There was a compelling honesty in the way her teenage daughter questioned their traditions, forcing the entire family to examine which customs served them and which had simply become habit.",
-                        "The compelling nature of her homesickness wasn't just missing India, but missing the version of herself who belonged there completely, without explanation or translation.",
-                        "His compelling vision for the community center focused not on the building itself, but on creating a space where immigrants could feel less alone in navigating their new country."
+                        "There was something compelling about the way her aunt told stories of their village in Punjab, each detail painted with vivid precision.",
+                        "The compelling argument for keeping the family restaurant open wasn't financial—it was the way customers spoke of it as their refuge.",
+                        "His compelling presence at family gatherings had nothing to do with being the loudest voice; instead, it was his ability to listen deeply.",
+                        "The most compelling reason to learn Hindi wasn't to please her grandparents, but to understand the poetry they quoted.",
+                        "There was a compelling honesty in the way her teenage daughter questioned their traditions.",
+                        "The compelling nature of her homesickness wasn't just missing India, but missing the version of herself who belonged there.",
+                        "His compelling vision for the community center focused on creating a space where immigrants could feel less alone."
                     ]
                 },
                 {
@@ -215,14 +248,15 @@
                     partOfSpeech: "adjective",
                     meaning: "having keen insight and understanding; quick to notice things",
                     difficulty: 1,
+                    etymology: "From Latin 'perceptus' meaning 'received' or 'understood'",
                     examples: [
-                        "Even as a child, Leela was perceptive enough to notice that her mother cooked different foods when they had Indian guests versus American ones, understanding instinctively the code-switching required for survival.",
-                        "The perceptive way her grandmother read people's faces made family gatherings feel like watching a master class in human nature, each raised eyebrow and pursed lip translated into precise social intelligence.",
-                        "His perceptive observation that their father grew quieter each December—the anniversary of leaving Bangladesh—helped the family understand why the holidays carried an undercurrent of melancholy.",
-                        "With perceptive clarity, she realized that her mother's criticism of her career choices wasn't about the job itself, but about the fear that success might take her daughter too far from home.",
-                        "The perceptive questions her five-year-old asked about why some people at the temple looked different from others revealed a child's natural ability to notice what adults had learned to ignore.",
-                        "Her perceptive understanding of office dynamics helped her navigate being the only Indian woman on the executive team, reading the subtle signals that others missed entirely.",
-                        "Through perceptive observation of her neighbors, Mrs. Krishnan learned that loneliness spoke many languages but always wore the same expression of carefully maintained politeness."
+                        "Even as a child, Leela was perceptive enough to notice that her mother cooked different foods for Indian versus American guests.",
+                        "The perceptive way her grandmother read people's faces made family gatherings feel like watching a master class in human nature.",
+                        "His perceptive observation that their father grew quieter each December helped the family understand the holiday melancholy.",
+                        "With perceptive clarity, she realized that her mother's criticism wasn't about the job itself, but about fear.",
+                        "The perceptive questions her five-year-old asked about temple diversity revealed a child's natural ability to notice differences.",
+                        "Her perceptive understanding of office dynamics helped her navigate being the only Indian woman on the executive team.",
+                        "Through perceptive observation of her neighbors, Mrs. Krishnan learned that loneliness spoke many languages."
                     ]
                 },
                 {
@@ -231,14 +265,15 @@
                     partOfSpeech: "adjective",
                     meaning: "showing good judgment and understanding; selective and refined",
                     difficulty: 2,
+                    etymology: "From Latin 'discernere' meaning 'to separate' or 'distinguish'",
                     examples: [
-                        "Her discerning palate, trained on her mother's complex curries, could detect the difference between garam masala ground fresh and the pre-mixed version from the Indian grocery store, a skill that connected her to generations of women who cooked by intuition.",
-                        "The discerning way he chose which traditions to maintain in his American household—keeping the daily prayers but abandoning the restrictions on his daughter's friendships—reflected years of careful thought about identity and adaptation.",
-                        "With discerning precision, she curated her wardrobe to navigate both worlds, knowing that the same sari that made her feel elegant at Indian weddings would draw stares at her law firm.",
-                        "His discerning approach to dating involved looking beyond surface compatibility to find someone who understood the weight of family expectations without being crushed by them.",
-                        "The discerning art collector had an eye for pieces that spoke to the immigrant experience, each painting and sculpture in her gallery telling stories of displacement and belonging.",
-                        "Her discerning choice of which battles to fight with her traditional parents—pushing back on career limitations while respecting their religious practices—showed a wisdom beyond her years.",
-                        "The discerning reader could see that his novel wasn't just about one family's journey from Calcutta to California, but about the universal struggle to plant roots in foreign soil while keeping the memory of home alive."
+                        "Her discerning palate, trained on her mother's complex curries, could detect the difference between fresh and pre-mixed garam masala.",
+                        "The discerning way he chose which traditions to maintain reflected years of careful thought about identity and adaptation.",
+                        "With discerning precision, she curated her wardrobe to navigate both worlds successfully.",
+                        "His discerning approach to dating involved looking beyond surface compatibility to find deeper understanding.",
+                        "The discerning art collector had an eye for pieces that spoke to the immigrant experience.",
+                        "Her discerning choice of which battles to fight with her traditional parents showed wisdom beyond her years.",
+                        "The discerning reader could see that his novel wasn't just about one family's journey, but about universal displacement."
                     ]
                 }
             ];
@@ -259,6 +294,15 @@
 
             const currentWord = getWeeklyWord(currentWeek);
 
+            // Toggle favorite word
+            const toggleFavorite = (word) => {
+                const newFavorites = favoriteWords.includes(word) 
+                    ? favoriteWords.filter(w => w !== word)
+                    : [...favoriteWords, word];
+                setFavoriteWords(newFavorites);
+                localStorage.setItem('favoriteWords', JSON.stringify(newFavorites));
+            };
+
             // Difficulty adjustment with localStorage persistence
             const adjustDifficulty = (direction) => {
                 const newDifficulty = Math.max(-2, Math.min(2, userProfile.difficulty + direction));
@@ -278,6 +322,12 @@
                 // Move to next word immediately
                 setCurrentWeek(currentWeek + 1);
                 setCurrentExample(0);
+            };
+
+            // Highlight the current word in examples
+            const highlightWordInExample = (example, word) => {
+                const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                return example.replace(regex, `<span class="example-highlight">${word}</span>`);
             };
 
             // Audio pronunciation
@@ -305,6 +355,18 @@
                 }
             };
 
+            // Get difficulty label
+            const getDifficultyLabel = (difficulty) => {
+                const labels = {
+                    '-2': 'Beginner',
+                    '-1': 'Elementary',
+                    '0': 'Intermediate',
+                    '1': 'Advanced',
+                    '2': 'Expert'
+                };
+                return labels[difficulty] || 'Intermediate';
+            };
+
             return React.createElement('div', {
                 className: "min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white p-6"
             }, 
@@ -312,7 +374,7 @@
                     // Header
                     React.createElement('div', { className: "text-center mb-8" },
                         React.createElement('h1', { className: "text-4xl font-bold mb-2" }, "Wordy"),
-                        React.createElement('p', { className: "text-blue-200 mb-2" }, `Week ${currentWeek + 1} • Conversational Level`),
+                        React.createElement('p', { className: "text-blue-200 mb-2" }, `Week ${currentWeek + 1} • ${getDifficultyLabel(currentWord.difficulty)} Level`),
                         React.createElement('div', { className: "flex items-center justify-center gap-2 text-sm text-yellow-300" },
                             React.createElement(Clock, { size: 16 }),
                             React.createElement('span', null, `Next update in: ${timeUntilMidnight}`)
@@ -320,31 +382,44 @@
                     ),
 
                     // Main Word Card
-                    React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-2xl p-8 mb-6 border border-white/20" },
+                    React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-2xl p-8 mb-6 border border-white/20 word-fade-in" },
                         React.createElement('div', { className: "text-center mb-6" },
-                            React.createElement('h2', { className: "text-5xl font-bold text-yellow-300 mb-4" }, currentWord.word),
                             React.createElement('div', { className: "flex items-center justify-center gap-4 mb-4" },
-                                React.createElement('span', { className: "text-xl text-blue-200" }, currentWord.pronunciation),
+                                React.createElement('h2', { className: "text-5xl font-bold text-yellow-300" }, currentWord.word),
+                                React.createElement('button', {
+                                    onClick: () => toggleFavorite(currentWord.word),
+                                    className: `p-2 rounded-full transition-colors ${favoriteWords.includes(currentWord.word) ? 'text-yellow-300 bg-yellow-300/20' : 'text-gray-400 hover:text-yellow-300'}`
+                                }, React.createElement(Star, { size: 24, filled: favoriteWords.includes(currentWord.word) }))
+                            ),
+                            React.createElement('div', { className: "flex items-center justify-center gap-4 mb-4" },
+                                React.createElement('span', { className: "text-xl text-blue-200 font-mono" }, currentWord.pronunciation),
                                 React.createElement('button', {
                                     onClick: () => speakWord(currentWord.word),
                                     className: "p-2 bg-blue-600 hover:bg-blue-700 rounded-full transition-colors hover:scale-105 active:scale-95",
                                     title: "Listen to pronunciation"
                                 }, React.createElement(Volume2, { size: 20 }))
                             ),
-                            React.createElement('p', { className: "text-lg text-purple-200 italic mb-4" }, currentWord.partOfSpeech),
-                            React.createElement('p', { className: "text-xl leading-relaxed" }, currentWord.meaning)
+                            React.createElement('p', { className: "text-lg text-purple-200 italic mb-2" }, currentWord.partOfSpeech),
+                            React.createElement('p', { className: "text-xl leading-relaxed mb-3" }, currentWord.meaning),
+                            React.createElement('p', { className: "text-sm text-gray-300 italic" }, `Etymology: ${currentWord.etymology}`)
                         )
                     ),
 
                     // Daily Example
                     React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20" },
                         React.createElement('div', { className: "flex items-center justify-between mb-4" },
-                            React.createElement('h3', { className: "text-2xl font-semibold" }, "Today's Contextual Usage"),
-                            React.createElement('span', { className: "text-sm text-blue-200" }, `Day ${currentExample + 1}`)
+                            React.createElement('h3', { className: "text-2xl font-semibold flex items-center gap-2" }, 
+                                React.createElement(BookOpen, { size: 20 }),
+                                "Today's Contextual Usage"
+                            ),
+                            React.createElement('span', { className: "text-sm text-blue-200" }, `Day ${currentExample + 1} of 7`)
                         ),
-                        React.createElement('div', { className: "text-lg leading-relaxed text-yellow-200 border-l-4 border-yellow-400 pl-6 italic" },
-                            currentWord.examples[currentExample]
-                        )
+                        React.createElement('div', { 
+                            className: "text-lg leading-relaxed text-yellow-200 border-l-4 border-yellow-400 pl-6 italic",
+                            dangerouslySetInnerHTML: { 
+                                __html: highlightWordInExample(currentWord.examples[currentExample], currentWord.word) 
+                            }
+                        })
                     ),
 
                     // Controls
@@ -363,35 +438,38 @@
                                     className: "px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors flex items-center justify-center gap-2"
                                 }, React.createElement(ChevronRight), "Skip Word")
                             ),
-                            React.createElement('p', { className: "text-xs text-blue-200 mt-2" }, "Updates daily at midnight")
+                            React.createElement('p', { className: "text-xs text-blue-200 mt-2" }, "Auto-updates at midnight")
                         ),
 
                         // Difficulty Control
                         React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20" },
-                            React.createElement('h4', { className: "font-semibold mb-3" }, "Future Word Difficulty"),
-                            React.createElement('div', { className: "flex justify-between items-center" },
+                            React.createElement('h4', { className: "font-semibold mb-3" }, "Word Difficulty"),
+                            React.createElement('div', { className: "flex justify-between items-center mb-2" },
                                 React.createElement('button', {
                                     onClick: () => adjustDifficulty(-1),
-                                    className: "flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                                    disabled: userProfile.difficulty <= -2,
+                                    className: "flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
                                 }, React.createElement(TrendingDown, { size: 16 }), "Easier"),
-                                React.createElement('span', { className: "font-mono" }, 
+                                React.createElement('span', { className: "font-mono text-lg" }, 
                                     `${userProfile.difficulty > 0 ? '+' : ''}${userProfile.difficulty}`
                                 ),
                                 React.createElement('button', {
                                     onClick: () => adjustDifficulty(1),
-                                    className: "flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                                    disabled: userProfile.difficulty >= 2,
+                                    className: "flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
                                 }, React.createElement(TrendingUp, { size: 16 }), "Harder")
                             ),
-                            React.createElement('p', { className: "text-xs text-blue-200 mt-2" }, "Saved automatically")
+                            React.createElement('p', { className: "text-xs text-center text-blue-200" }, getDifficultyLabel(userProfile.difficulty))
                         ),
 
-                        // Skip Info
+                        // Learning Stats
                         React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20" },
                             React.createElement('h4', { className: "font-semibold mb-3" }, "Learning Stats"),
                             React.createElement('div', { className: "text-sm space-y-1" },
                                 React.createElement('p', null, `Words learned: ${currentWeek + 1}`),
                                 React.createElement('p', null, `Words skipped: ${skippedWords.length}`),
-                                React.createElement('p', { className: "text-green-400" }, `Total progress: ${currentWeek + 1 + skippedWords.length} words`)
+                                React.createElement('p', null, `Favorite words: ${favoriteWords.length}`),
+                                React.createElement('p', { className: "text-green-400 font-semibold" }, `Total progress: ${currentWeek + 1 + skippedWords.length} words`)
                             )
                         )
                     ),
@@ -406,10 +484,10 @@
                             Array.from({ length: 7 }, (_, i) =>
                                 React.createElement('div', {
                                     key: i,
-                                    className: `h-8 rounded flex items-center justify-center text-xs ${
+                                    className: `h-8 rounded flex items-center justify-center text-xs font-semibold transition-colors ${
                                         i <= currentExample
-                                            ? 'bg-green-500' 
-                                            : 'bg-white/20'
+                                            ? 'bg-green-500 text-white' 
+                                            : 'bg-white/20 text-gray-300'
                                     }`
                                 }, i + 1)
                             )
@@ -419,9 +497,12 @@
                         )
                     ),
 
-                    // Audio Note
+                    // Footer
                     React.createElement('div', { className: "text-center text-sm text-blue-200" },
-                        React.createElement('p', null, "🔊 Click the volume button to hear pronunciation • Updates automatically at midnight")
+                        React.createElement('p', null, "🔊 Click the volume button to hear pronunciation • ⭐ Star your favorite words"),
+                        React.createElement('p', { className: "mt-2" }, 
+                            `📚 ${vocabularyDatabase.length} words loaded • Updates automatically at midnight`
+                        )
                     )
                 )
             );
