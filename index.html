@@ -25,6 +25,16 @@
             padding: 0 4px;
             border-radius: 3px;
         }
+        .review-indicator {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #1a202c;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
     </style>
 </head>
 <body>
@@ -87,13 +97,29 @@
             </svg>
         );
 
+        const RefreshCw = ({ size = 16 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23,4 23,10 17,10"></polyline>
+                <polyline points="1,20 1,14 7,14"></polyline>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+            </svg>
+        );
+
         const VocabularyBuilder = () => {
             const [currentWeek, setCurrentWeek] = useState(0);
             const [currentExample, setCurrentExample] = useState(0);
             const [timeUntilMidnight, setTimeUntilMidnight] = useState('');
+            
+            // Load favorite words with review tracking
             const [favoriteWords, setFavoriteWords] = useState(() => {
                 const saved = localStorage.getItem('favoriteWords');
                 return saved ? JSON.parse(saved) : [];
+            });
+
+            // Load favorite review schedule
+            const [favoriteReviews, setFavoriteReviews] = useState(() => {
+                const saved = localStorage.getItem('favoriteReviews');
+                return saved ? JSON.parse(saved) : {};
             });
             
             // Load difficulty from localStorage with persistent storage
@@ -155,7 +181,8 @@
                     const now = new Date();
                     const daysPassed = getDaysBetween(startDate, now);
                     
-                    const calculatedWeek = Math.floor(daysPassed / 7) + skippedWords.length;
+                    // Fixed calculation: week starts at 0, not affected by skipped words for display
+                    const calculatedWeek = Math.floor(daysPassed / 7);
                     const calculatedExample = daysPassed % 7;
                     
                     setCurrentWeek(calculatedWeek);
@@ -170,9 +197,9 @@
                 const interval = setInterval(updateProgress, 1000);
 
                 return () => clearInterval(interval);
-            }, [startDate, skippedWords.length]);
+            }, [startDate]);
 
-            // Expanded vocabulary database with 30 words (you can expand to 100)
+            // Expanded vocabulary database
             const vocabularyDatabase = [
                 {
                     word: "articulate",
@@ -278,29 +305,86 @@
                 }
             ];
 
-            // Get word based on user's difficulty profile
+            // Check if it's time to review a favorite word
+            const checkForReview = () => {
+                const today = new Date().toDateString();
+                for (const [word, reviewDate] of Object.entries(favoriteReviews)) {
+                    if (new Date(reviewDate).toDateString() === today && favoriteWords.includes(word)) {
+                        const wordData = vocabularyDatabase.find(w => w.word === word);
+                        if (wordData) {
+                            return wordData; // Return the word to review
+                        }
+                    }
+                }
+                return null;
+            };
+
+            // Get word based on user's difficulty profile or review schedule
             const getWeeklyWord = (weekIndex) => {
+                // First check if there's a word to review today
+                const reviewWord = checkForReview();
+                if (reviewWord) {
+                    return { ...reviewWord, isReview: true };
+                }
+
+                // Otherwise, get regular word progression
                 const adjustedDifficulty = userProfile.difficulty;
+                const totalWordsProgressed = weekIndex + skippedWords.length;
                 const availableWords = vocabularyDatabase.filter(word => 
                     Math.abs(word.difficulty - adjustedDifficulty) <= 1
                 );
                 
                 if (availableWords.length === 0) {
-                    return vocabularyDatabase[weekIndex % vocabularyDatabase.length];
+                    return vocabularyDatabase[totalWordsProgressed % vocabularyDatabase.length];
                 }
                 
-                return availableWords[weekIndex % availableWords.length];
+                return availableWords[totalWordsProgressed % availableWords.length];
             };
 
             const currentWord = getWeeklyWord(currentWeek);
 
-            // Toggle favorite word
+            // Toggle favorite word with spaced repetition scheduling
             const toggleFavorite = (word) => {
                 const newFavorites = favoriteWords.includes(word) 
                     ? favoriteWords.filter(w => w !== word)
                     : [...favoriteWords, word];
+                
                 setFavoriteWords(newFavorites);
                 localStorage.setItem('favoriteWords', JSON.stringify(newFavorites));
+
+                // Schedule review for newly favorited words (4-6 weeks from now)
+                if (!favoriteWords.includes(word)) {
+                    const reviewInterval = 4 + Math.floor(Math.random() * 3); // 4-6 weeks
+                    const reviewDate = new Date();
+                    reviewDate.setDate(reviewDate.getDate() + (reviewInterval * 7));
+                    
+                    const newReviews = {
+                        ...favoriteReviews,
+                        [word]: reviewDate.toISOString()
+                    };
+                    setFavoriteReviews(newReviews);
+                    localStorage.setItem('favoriteReviews', JSON.stringify(newReviews));
+                } else {
+                    // Remove from review schedule if unfavorited
+                    const newReviews = { ...favoriteReviews };
+                    delete newReviews[word];
+                    setFavoriteReviews(newReviews);
+                    localStorage.setItem('favoriteReviews', JSON.stringify(newReviews));
+                }
+            };
+
+            // Mark review as completed and reschedule
+            const completeReview = (word) => {
+                const reviewInterval = 4 + Math.floor(Math.random() * 3); // 4-6 weeks
+                const nextReviewDate = new Date();
+                nextReviewDate.setDate(nextReviewDate.getDate() + (reviewInterval * 7));
+                
+                const newReviews = {
+                    ...favoriteReviews,
+                    [word]: nextReviewDate.toISOString()
+                };
+                setFavoriteReviews(newReviews);
+                localStorage.setItem('favoriteReviews', JSON.stringify(newReviews));
             };
 
             // Difficulty adjustment with localStorage persistence
@@ -315,13 +399,25 @@
 
             // Skip current word function
             const skipCurrentWord = () => {
-                const newSkippedWords = [...skippedWords, currentWord.word];
-                setSkippedWords(newSkippedWords);
-                localStorage.setItem('vocabSkippedWords', JSON.stringify(newSkippedWords));
+                if (currentWord.isReview) {
+                    // If it's a review word, just reschedule it
+                    completeReview(currentWord.word);
+                } else {
+                    // If it's a regular word, add to skipped list
+                    const newSkippedWords = [...skippedWords, currentWord.word];
+                    setSkippedWords(newSkippedWords);
+                    localStorage.setItem('vocabSkippedWords', JSON.stringify(newSkippedWords));
+                }
                 
-                // Move to next word immediately
+                // Force update by incrementing week temporarily
                 setCurrentWeek(currentWeek + 1);
-                setCurrentExample(0);
+                setTimeout(() => {
+                    // Then reset to actual current week
+                    const now = new Date();
+                    const daysPassed = getDaysBetween(startDate, now);
+                    setCurrentWeek(Math.floor(daysPassed / 7));
+                    setCurrentExample(daysPassed % 7);
+                }, 100);
             };
 
             // Highlight the current word in examples
@@ -367,6 +463,11 @@
                 return labels[difficulty] || 'Intermediate';
             };
 
+            // Calculate total stats
+            const totalWordsLearned = currentWeek + 1;
+            const totalWordsSkipped = skippedWords.length;
+            const totalProgress = totalWordsLearned + totalWordsSkipped;
+
             return React.createElement('div', {
                 className: "min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white p-6"
             }, 
@@ -374,10 +475,25 @@
                     // Header
                     React.createElement('div', { className: "text-center mb-8" },
                         React.createElement('h1', { className: "text-4xl font-bold mb-2" }, "Wordy"),
-                        React.createElement('p', { className: "text-blue-200 mb-2" }, `Week ${currentWeek + 1} • ${getDifficultyLabel(currentWord.difficulty)} Level`),
+                        React.createElement('p', { className: "text-blue-200 mb-2" }, 
+                            `Week ${currentWeek + 1} • ${getDifficultyLabel(currentWord.difficulty)} Level${currentWord.isReview ? ' • 🔄 Review' : ''}`
+                        ),
                         React.createElement('div', { className: "flex items-center justify-center gap-2 text-sm text-yellow-300" },
                             React.createElement(Clock, { size: 16 }),
                             React.createElement('span', null, `Next update in: ${timeUntilMidnight}`)
+                        )
+                    ),
+
+                    // Review notification
+                    currentWord.isReview && React.createElement('div', { 
+                        className: "review-indicator rounded-xl p-4 mb-6 text-center"
+                    },
+                        React.createElement('div', { className: "flex items-center justify-center gap-2 mb-2" },
+                            React.createElement(RefreshCw, { size: 20 }),
+                            React.createElement('span', { className: "font-bold text-lg" }, "Time to Review!")
+                        ),
+                        React.createElement('p', { className: "text-sm" }, 
+                            `You starred "${currentWord.word}" and it's ready for spaced repetition review.`
                         )
                     ),
 
@@ -410,16 +526,35 @@
                         React.createElement('div', { className: "flex items-center justify-between mb-4" },
                             React.createElement('h3', { className: "text-2xl font-semibold flex items-center gap-2" }, 
                                 React.createElement(BookOpen, { size: 20 }),
-                                "Today's Contextual Usage"
+                                currentWord.isReview ? "Review Example" : "Today's Contextual Usage"
                             ),
-                            React.createElement('span', { className: "text-sm text-blue-200" }, `Day ${currentExample + 1} of 7`)
+                            !currentWord.isReview && React.createElement('span', { className: "text-sm text-blue-200" }, `Day ${currentExample + 1} of 7`)
                         ),
                         React.createElement('div', { 
                             className: "text-lg leading-relaxed text-yellow-200 border-l-4 border-yellow-400 pl-6 italic",
                             dangerouslySetInnerHTML: { 
-                                __html: highlightWordInExample(currentWord.examples[currentExample], currentWord.word) 
+                                __html: highlightWordInExample(
+                                    currentWord.examples[currentWord.isReview ? 0 : currentExample], 
+                                    currentWord.word
+                                ) 
                             }
-                        })
+                        }),
+                        currentWord.isReview && React.createElement('div', { className: "mt-4 text-center" },
+                            React.createElement('button', {
+                                onClick: () => {
+                                    completeReview(currentWord.word);
+                                    // Force refresh to show next word
+                                    setCurrentWeek(currentWeek + 1);
+                                    setTimeout(() => {
+                                        const now = new Date();
+                                        const daysPassed = getDaysBetween(startDate, now);
+                                        setCurrentWeek(Math.floor(daysPassed / 7));
+                                        setCurrentExample(daysPassed % 7);
+                                    }, 100);
+                                },
+                                className: "px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors font-semibold"
+                            }, "Mark as Reviewed ✓")
+                        )
                     ),
 
                     // Controls
@@ -436,9 +571,11 @@
                                 React.createElement('button', {
                                     onClick: skipCurrentWord,
                                     className: "px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                }, React.createElement(ChevronRight), "Skip Word")
+                                }, React.createElement(ChevronRight), currentWord.isReview ? "Skip Review" : "Skip Word")
                             ),
-                            React.createElement('p', { className: "text-xs text-blue-200 mt-2" }, "Auto-updates at midnight")
+                            React.createElement('p', { className: "text-xs text-blue-200 mt-2" }, 
+                                currentWord.isReview ? "Reviews appear when ready" : "Auto-updates at midnight"
+                            )
                         ),
 
                         // Difficulty Control
@@ -466,10 +603,11 @@
                         React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20" },
                             React.createElement('h4', { className: "font-semibold mb-3" }, "Learning Stats"),
                             React.createElement('div', { className: "text-sm space-y-1" },
-                                React.createElement('p', null, `Words learned: ${currentWeek + 1}`),
-                                React.createElement('p', null, `Words skipped: ${skippedWords.length}`),
+                                React.createElement('p', null, `Words learned: ${totalWordsLearned}`),
+                                React.createElement('p', null, `Words skipped: ${totalWordsSkipped}`),
                                 React.createElement('p', null, `Favorite words: ${favoriteWords.length}`),
-                                React.createElement('p', { className: "text-green-400 font-semibold" }, `Total progress: ${currentWeek + 1 + skippedWords.length} words`)
+                                React.createElement('p', null, `Reviews scheduled: ${Object.keys(favoriteReviews).length}`),
+                                React.createElement('p', { className: "text-green-400 font-semibold" }, `Total progress: ${totalProgress} words`)
                             )
                         )
                     ),
@@ -493,7 +631,43 @@
                             )
                         ),
                         React.createElement('div', { className: "text-sm text-blue-200 text-center" },
-                            `Day ${currentExample + 1} of Week ${currentWeek + 1} • ${currentExample >= 6 ? 'New word at midnight!' : `${6 - currentExample} days until new word`}`
+                            currentWord.isReview 
+                                ? "🔄 Reviewing a starred word from your favorites"
+                                : `Day ${currentExample + 1} of Week ${currentWeek + 1} • ${currentExample >= 6 ? 'New word at midnight!' : `${6 - currentExample} days until new word`}`
+                        )
+                    ),
+
+                    // Spaced Repetition Info
+                    favoriteWords.length > 0 && React.createElement('div', { className: "bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 mb-6" },
+                        React.createElement('h4', { className: "font-semibold mb-3 flex items-center gap-2" },
+                            React.createElement(Star, { size: 16, filled: true }),
+                            "Spaced Repetition Schedule"
+                        ),
+                        React.createElement('div', { className: "text-sm text-blue-200 mb-3" },
+                            "Starred words will reappear for review every 4-6 weeks to strengthen retention."
+                        ),
+                        favoriteWords.length > 0 && React.createElement('div', { className: "space-y-2" },
+                            React.createElement('p', { className: "font-semibold text-yellow-300" }, "Your Starred Words:"),
+                            React.createElement('div', { className: "flex flex-wrap gap-2" },
+                                favoriteWords.map(word => {
+                                    const reviewDate = favoriteReviews[word] ? new Date(favoriteReviews[word]) : null;
+                                    const isToday = reviewDate && reviewDate.toDateString() === new Date().toDateString();
+                                    const daysUntilReview = reviewDate ? Math.ceil((reviewDate - new Date()) / (1000 * 60 * 60 * 24)) : null;
+                                    
+                                    return React.createElement('div', {
+                                        key: word,
+                                        className: `px-3 py-1 rounded-full text-xs ${
+                                            isToday ? 'bg-yellow-500 text-black font-bold' : 'bg-purple-600 text-white'
+                                        }`
+                                    }, 
+                                        word + (
+                                            isToday ? ' (Today!)' : 
+                                            daysUntilReview > 0 ? ` (${daysUntilReview}d)` : 
+                                            daysUntilReview < 0 ? ' (Overdue)' : ''
+                                        )
+                                    );
+                                })
+                            )
                         )
                     ),
 
@@ -501,7 +675,7 @@
                     React.createElement('div', { className: "text-center text-sm text-blue-200" },
                         React.createElement('p', null, "🔊 Click the volume button to hear pronunciation • ⭐ Star your favorite words"),
                         React.createElement('p', { className: "mt-2" }, 
-                            `📚 ${vocabularyDatabase.length} words loaded • Updates automatically at midnight`
+                            `📚 ${vocabularyDatabase.length} words loaded • Updates automatically at midnight • 🔄 Starred words reviewed every 4-6 weeks`
                         )
                     )
                 )
