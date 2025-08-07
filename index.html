@@ -109,6 +109,9 @@
             const [currentWeek, setCurrentWeek] = useState(0);
             const [currentExample, setCurrentExample] = useState(0);
             const [timeUntilMidnight, setTimeUntilMidnight] = useState('');
+            const [vocabularyDatabase, setVocabularyDatabase] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            const [loadError, setLoadError] = useState(null);
             
             // Load favorite words with review tracking
             const [favoriteWords, setFavoriteWords] = useState(() => {
@@ -154,11 +157,46 @@
                 }
             });
 
-            // Load skipped words from localStorage
-            const [skippedWords, setSkippedWords] = useState(() => {
-                const saved = localStorage.getItem('vocabSkippedWords');
-                return saved ? JSON.parse(saved) : [];
-            });
+            // Load vocabulary from JSON file
+            useEffect(() => {
+                const loadVocabulary = async () => {
+                    try {
+                        const response = await fetch('./vocabulary.json');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        setVocabularyDatabase(data);
+                        setIsLoading(false);
+                    } catch (error) {
+                        console.error('Failed to load vocabulary:', error);
+                        setLoadError(error.message);
+                        setIsLoading(false);
+                        // Fallback to a minimal vocabulary set
+                        setVocabularyDatabase([
+                            {
+                                word: "resilient",
+                                pronunciation: "/rɪˈzɪljənt/",
+                                partOfSpeech: "adjective",
+                                meaning: "able to recover quickly from difficulties; strong and flexible",
+                                difficulty: 0,
+                                etymology: "From Latin 'resilire' meaning 'to rebound'",
+                                examples: [
+                                    "The resilient community rebuilt after challenges.",
+                                    "Her resilient nature helped her adapt to change.",
+                                    "Through resilient effort, they preserved their traditions.",
+                                    "The resilient spirit of the family endured.",
+                                    "His resilient optimism inspired others.",
+                                    "The resilient bond between them grew stronger.",
+                                    "Their resilient approach solved the problem."
+                                ]
+                            }
+                        ]);
+                    }
+                };
+                
+                loadVocabulary();
+            }, []);
 
             // Calculate time until next midnight
             const calculateTimeUntilMidnight = () => {
@@ -175,8 +213,15 @@
                 return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             };
 
+            // Load skipped words from localStorage  
+            const [skippedWords, setSkippedWords] = useState(() => {
+                const saved = localStorage.getItem('vocabSkippedWords');
+                return saved ? JSON.parse(saved) : [];
+            });
+
             // Calculate current week and day based on midnight boundaries
             useEffect(() => {
+                if (vocabularyDatabase.length === 0) return; // Don't run until vocabulary is loaded
                 const updateProgress = () => {
                     const now = new Date();
                     const daysPassed = getDaysBetween(startDate, now);
@@ -197,113 +242,7 @@
                 const interval = setInterval(updateProgress, 1000);
 
                 return () => clearInterval(interval);
-            }, [startDate]);
-
-            // Expanded vocabulary database
-            const vocabularyDatabase = [
-                {
-                    word: "articulate",
-                    pronunciation: "/ɑrˈtɪkyəlɪt/",
-                    partOfSpeech: "adjective/verb",
-                    meaning: "expressing thoughts clearly and effectively; to speak distinctly",
-                    difficulty: -2,
-                    etymology: "From Latin 'articulatus' meaning 'jointed' or 'distinct'",
-                    examples: [
-                        "Maya found herself struggling to articulate the weight of her mother's expectations during dinner conversations that stretched long into the evening.",
-                        "The professor's articulate explanation of quantum mechanics reminded Elena of her father's patient way of describing the monsoon seasons.",
-                        "In the cramped apartment above the grocery store, Ravi watched his daughter articulate her dreams of medical school with such precision.",
-                        "The way Kamala could articulate the exact shade of homesickness made her friends understand why she spent hours writing letters home.",
-                        "During the neighborhood association meeting, Mrs. Chen's articulate defense of the community garden revealed her deep understanding.",
-                        "As the wedding approached, Deepa found it increasingly difficult to articulate why she felt like she was watching her life happen to someone else.",
-                        "The child's articulate questions about why his grandfather only spoke Tamil at home revealed a wisdom that made the adults fall silent."
-                    ]
-                },
-                {
-                    word: "nuanced",
-                    pronunciation: "/ˈnuɑnst/",
-                    partOfSpeech: "adjective",
-                    meaning: "having subtle differences in expression, meaning, or response",
-                    difficulty: -1,
-                    etymology: "From French 'nuance' meaning 'shade' or 'subtle difference'",
-                    examples: [
-                        "Priya's relationship with her mother-in-law required a nuanced understanding of when silence meant disapproval and when it meant deep thought.",
-                        "The flavors in her grandmother's curry were impossibly nuanced—cardamom that whispered rather than shouted, turmeric that painted warmth.",
-                        "Living between two cultures demanded a nuanced approach to identity that Arjun's American-born friends couldn't quite grasp.",
-                        "The nuanced way her father expressed love—through extra helpings of rice, through staying up late to help with homework.",
-                        "In the bookstore where she worked, Meera developed a nuanced understanding of her customers' needs.",
-                        "The conflict between her Indian parents' expectations and her own ambitions required nuanced navigation.",
-                        "His writing captured the nuanced experience of growing up bilingual, where some emotions could only be expressed in one language."
-                    ]
-                },
-                {
-                    word: "pragmatic",
-                    pronunciation: "/prægˈmætɪk/",
-                    partOfSpeech: "adjective",
-                    meaning: "practical rather than idealistic; focused on what works",
-                    difficulty: 0,
-                    etymology: "From Greek 'pragmatikos' meaning 'fit for business'",
-                    examples: [
-                        "After years of dreaming about returning to India, Sunita took a pragmatic approach to her parents' aging.",
-                        "The pragmatic decision to rent out the basement apartment helped the Patels maintain their mortgage.",
-                        "Reshma's pragmatic nature emerged during wedding planning when she suggested buffet-style service over plated dinners.",
-                        "His mother's pragmatic advice about choosing a spouse seemed cold until he watched friends divorce over differences.",
-                        "The pragmatic choice would have been to major in engineering like his brothers, but Vikram's heart pulled him toward literature.",
-                        "In the aftermath of her father's stroke, Kavya discovered her own pragmatic strength.",
-                        "The pragmatic arrangement of living with his in-laws during the first years of marriage allowed them to save money."
-                    ]
-                },
-                {
-                    word: "compelling",
-                    pronunciation: "/kəmˈpɛlɪŋ/",
-                    partOfSpeech: "adjective",
-                    meaning: "evoking interest or attention in a powerful way; convincing",
-                    difficulty: 0,
-                    etymology: "From Latin 'compellere' meaning 'to drive together'",
-                    examples: [
-                        "There was something compelling about the way her aunt told stories of their village in Punjab, each detail painted with vivid precision.",
-                        "The compelling argument for keeping the family restaurant open wasn't financial—it was the way customers spoke of it as their refuge.",
-                        "His compelling presence at family gatherings had nothing to do with being the loudest voice; instead, it was his ability to listen deeply.",
-                        "The most compelling reason to learn Hindi wasn't to please her grandparents, but to understand the poetry they quoted.",
-                        "There was a compelling honesty in the way her teenage daughter questioned their traditions.",
-                        "The compelling nature of her homesickness wasn't just missing India, but missing the version of herself who belonged there.",
-                        "His compelling vision for the community center focused on creating a space where immigrants could feel less alone."
-                    ]
-                },
-                {
-                    word: "perceptive",
-                    pronunciation: "/pərˈsɛptɪv/",
-                    partOfSpeech: "adjective",
-                    meaning: "having keen insight and understanding; quick to notice things",
-                    difficulty: 1,
-                    etymology: "From Latin 'perceptus' meaning 'received' or 'understood'",
-                    examples: [
-                        "Even as a child, Leela was perceptive enough to notice that her mother cooked different foods for Indian versus American guests.",
-                        "The perceptive way her grandmother read people's faces made family gatherings feel like watching a master class in human nature.",
-                        "His perceptive observation that their father grew quieter each December helped the family understand the holiday melancholy.",
-                        "With perceptive clarity, she realized that her mother's criticism wasn't about the job itself, but about fear.",
-                        "The perceptive questions her five-year-old asked about temple diversity revealed a child's natural ability to notice differences.",
-                        "Her perceptive understanding of office dynamics helped her navigate being the only Indian woman on the executive team.",
-                        "Through perceptive observation of her neighbors, Mrs. Krishnan learned that loneliness spoke many languages."
-                    ]
-                },
-                {
-                    word: "discerning",
-                    pronunciation: "/dɪˈsɜrnɪŋ/",
-                    partOfSpeech: "adjective",
-                    meaning: "showing good judgment and understanding; selective and refined",
-                    difficulty: 2,
-                    etymology: "From Latin 'discernere' meaning 'to separate' or 'distinguish'",
-                    examples: [
-                        "Her discerning palate, trained on her mother's complex curries, could detect the difference between fresh and pre-mixed garam masala.",
-                        "The discerning way he chose which traditions to maintain reflected years of careful thought about identity and adaptation.",
-                        "With discerning precision, she curated her wardrobe to navigate both worlds successfully.",
-                        "His discerning approach to dating involved looking beyond surface compatibility to find deeper understanding.",
-                        "The discerning art collector had an eye for pieces that spoke to the immigrant experience.",
-                        "Her discerning choice of which battles to fight with her traditional parents showed wisdom beyond her years.",
-                        "The discerning reader could see that his novel wasn't just about one family's journey, but about universal displacement."
-                    ]
-                }
-            ];
+            }, [startDate, vocabularyDatabase.length]);
 
             // Check if it's time to review a favorite word
             const checkForReview = () => {
@@ -321,24 +260,21 @@
 
             // Get word based on user's difficulty profile or review schedule
             const getWeeklyWord = (weekIndex) => {
+                if (vocabularyDatabase.length === 0) {
+                    return { word: "loading", meaning: "Please wait...", examples: [""], difficulty: 0 };
+                }
+
                 // First check if there's a word to review today
                 const reviewWord = checkForReview();
                 if (reviewWord) {
                     return { ...reviewWord, isReview: true };
                 }
 
-                // Otherwise, get regular word progression
-                const adjustedDifficulty = userProfile.difficulty;
+                // Get regular word progression - use total progress for sequential learning
                 const totalWordsProgressed = weekIndex + skippedWords.length;
-                const availableWords = vocabularyDatabase.filter(word => 
-                    Math.abs(word.difficulty - adjustedDifficulty) <= 1
-                );
                 
-                if (availableWords.length === 0) {
-                    return vocabularyDatabase[totalWordsProgressed % vocabularyDatabase.length];
-                }
-                
-                return availableWords[totalWordsProgressed % availableWords.length];
+                // Simply cycle through all words sequentially
+                return vocabularyDatabase[totalWordsProgressed % vocabularyDatabase.length];
             };
 
             const currentWord = getWeeklyWord(currentWeek);
@@ -467,6 +403,30 @@
             const totalWordsLearned = currentWeek + 1;
             const totalWordsSkipped = skippedWords.length;
             const totalProgress = totalWordsLearned + totalWordsSkipped;
+
+            // Show loading or error state
+            if (isLoading) {
+                return React.createElement('div', {
+                    className: "min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white p-6 flex items-center justify-center"
+                },
+                    React.createElement('div', { className: "text-center" },
+                        React.createElement('h1', { className: "text-4xl font-bold mb-4" }, "Wordy"),
+                        React.createElement('p', { className: "text-xl" }, "Loading vocabulary...")
+                    )
+                );
+            }
+
+            if (loadError) {
+                return React.createElement('div', {
+                    className: "min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white p-6 flex items-center justify-center"
+                },
+                    React.createElement('div', { className: "text-center" },
+                        React.createElement('h1', { className: "text-4xl font-bold mb-4" }, "Wordy"),
+                        React.createElement('p', { className: "text-xl text-red-300 mb-4" }, `Error loading vocabulary: ${loadError}`),
+                        React.createElement('p', { className: "text-lg" }, "Using fallback vocabulary. Please ensure vocabulary.json is in the same directory as this file.")
+                    )
+                );
+            }
 
             return React.createElement('div', {
                 className: "min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white p-6"
