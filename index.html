@@ -225,17 +225,35 @@
                 return () => clearInterval(interval);
             }, [startDate, vocabularyDatabase.length]);
 
-            // Check if it's time to review a favorite word
+            // Check if it's time to review a favorite word - now with adaptive spaced repetition
             const checkForReview = () => {
                 const today = new Date().toDateString();
-                for (const [word, reviewDate] of Object.entries(favoriteReviews)) {
+                const availableReviews = [];
+                
+                // Collect all words that are due for review today
+                for (const [word, reviewData] of Object.entries(favoriteReviews)) {
+                    // Handle both old format (string) and new format (object)
+                    const reviewDate = typeof reviewData === 'string' ? reviewData : reviewData.nextReview;
+                    
                     if (new Date(reviewDate).toDateString() === today && favoriteWords.includes(word)) {
                         const wordData = vocabularyDatabase.find(w => w.word === word);
                         if (wordData) {
-                            return wordData; // Return the word to review
+                            // Add stage info for display
+                            const stage = typeof reviewData === 'object' ? reviewData.stage : 1;
+                            availableReviews.push({
+                                ...wordData,
+                                reviewStage: stage
+                            });
                         }
                     }
                 }
+                
+                // Prioritize earlier stage reviews (more urgent)
+                if (availableReviews.length > 0) {
+                    availableReviews.sort((a, b) => a.reviewStage - b.reviewStage);
+                    return availableReviews[0]; // Return the most urgent review
+                }
+                
                 return null;
             };
 
@@ -260,7 +278,7 @@
 
             const currentWord = getWeeklyWord(currentWeek);
 
-            // Toggle favorite word with spaced repetition scheduling
+            // Toggle favorite word with adaptive spaced repetition scheduling
             const toggleFavorite = (word) => {
                 const newFavorites = favoriteWords.includes(word) 
                     ? favoriteWords.filter(w => w !== word)
@@ -269,15 +287,18 @@
                 setFavoriteWords(newFavorites);
                 localStorage.setItem('favoriteWords', JSON.stringify(newFavorites));
 
-                // Schedule review for newly favorited words (4-6 weeks from now)
+                // Schedule first review for newly favorited words (tomorrow)
                 if (!favoriteWords.includes(word)) {
-                    const reviewInterval = 4 + Math.floor(Math.random() * 3); // 4-6 weeks
                     const reviewDate = new Date();
-                    reviewDate.setDate(reviewDate.getDate() + (reviewInterval * 7));
+                    reviewDate.setDate(reviewDate.getDate() + 1); // Day 1: Review tomorrow
                     
                     const newReviews = {
                         ...favoriteReviews,
-                        [word]: reviewDate.toISOString()
+                        [word]: {
+                            nextReview: reviewDate.toISOString(),
+                            stage: 1, // Track which stage of spaced repetition we're in
+                            lastReviewed: new Date().toISOString()
+                        }
                     };
                     setFavoriteReviews(newReviews);
                     localStorage.setItem('favoriteReviews', JSON.stringify(newReviews));
@@ -290,15 +311,34 @@
                 }
             };
 
-            // Mark review as completed and reschedule
+            // Mark review as completed and schedule next review using adaptive spaced repetition
             const completeReview = (word) => {
-                const reviewInterval = 4 + Math.floor(Math.random() * 3); // 4-6 weeks
+                const currentReview = favoriteReviews[word];
+                if (!currentReview) return;
+
+                // Adaptive spaced repetition intervals
+                const intervals = {
+                    1: 2,   // Stage 1: Review in 2 days (Day 3)
+                    2: 4,   // Stage 2: Review in 4 days (Day 7) 
+                    3: 7,   // Stage 3: Review in 7 days (Day 14)
+                    4: 14,  // Stage 4: Review in 14 days (Day 28)
+                    5: 30   // Stage 5+: Review every 30 days
+                };
+
+                const currentStage = currentReview.stage || 1;
+                const nextStage = Math.min(currentStage + 1, 5);
+                const daysUntilNext = intervals[currentStage] || 30;
+
                 const nextReviewDate = new Date();
-                nextReviewDate.setDate(nextReviewDate.getDate() + (reviewInterval * 7));
+                nextReviewDate.setDate(nextReviewDate.getDate() + daysUntilNext);
                 
                 const newReviews = {
                     ...favoriteReviews,
-                    [word]: nextReviewDate.toISOString()
+                    [word]: {
+                        nextReview: nextReviewDate.toISOString(),
+                        stage: nextStage,
+                        lastReviewed: new Date().toISOString()
+                    }
                 };
                 setFavoriteReviews(newReviews);
                 localStorage.setItem('favoriteReviews', JSON.stringify(newReviews));
@@ -407,7 +447,7 @@
                     React.createElement('div', { className: "text-center mb-8" },
                         React.createElement('h1', { className: "text-4xl font-bold mb-2" }, "Wordy"),
                         React.createElement('p', { className: "text-blue-200 mb-2" }, 
-                            `Week ${currentWeek + 1} • ${getDifficultyLabel(currentWord.difficulty)} Level${currentWord.isReview ? ' • 🔄 Review' : ''}`
+                            `Week ${currentWeek + 1} • ${getDifficultyLabel(currentWord.difficulty)} Level${currentWord.isReview ? ` • 🔄 Review (Stage ${currentWord.reviewStage})` : ''}`
                         ),
                         React.createElement('div', { className: "flex items-center justify-center gap-2 text-sm text-yellow-300" },
                             React.createElement(Clock, { size: 16 }),
@@ -424,7 +464,7 @@
                             React.createElement('span', { className: "font-bold text-lg" }, "Time to Review!")
                         ),
                         React.createElement('p', { className: "text-sm" }, 
-                            `You starred "${currentWord.word}" and it's ready for spaced repetition review.`
+                            `You starred "${currentWord.word}" and it's ready for spaced repetition review (Stage ${currentWord.reviewStage}).`
                         )
                     ),
 
@@ -554,13 +594,17 @@
                             "Spaced Repetition Schedule"
                         ),
                         React.createElement('div', { className: "text-sm text-blue-200 mb-3" },
-                            "Starred words will reappear for review every 4-6 weeks to strengthen retention."
+                            "Starred words use adaptive spaced repetition: Day 1→3→7→14→28→Monthly"
                         ),
                         favoriteWords.length > 0 && React.createElement('div', { className: "space-y-2" },
                             React.createElement('p', { className: "font-semibold text-yellow-300" }, "Your Starred Words:"),
                             React.createElement('div', { className: "flex flex-wrap gap-2" },
                                 favoriteWords.map(word => {
-                                    const reviewDate = favoriteReviews[word] ? new Date(favoriteReviews[word]) : null;
+                                    const reviewData = favoriteReviews[word];
+                                    // Handle both old format (string) and new format (object)
+                                    const reviewDate = reviewData ? (typeof reviewData === 'string' ? new Date(reviewData) : new Date(reviewData.nextReview)) : null;
+                                    const stage = reviewData && typeof reviewData === 'object' ? reviewData.stage : 1;
+                                    
                                     const isToday = reviewDate && reviewDate.toDateString() === new Date().toDateString();
                                     const daysUntilReview = reviewDate ? Math.ceil((reviewDate - new Date()) / (1000 * 60 * 60 * 24)) : null;
                                     
@@ -570,10 +614,10 @@
                                             isToday ? 'bg-yellow-500 text-black font-bold' : 'bg-purple-600 text-white'
                                         }`
                                     }, 
-                                        word + (
-                                            isToday ? ' (Today!)' : 
-                                            daysUntilReview > 0 ? ` (${daysUntilReview}d)` : 
-                                            daysUntilReview < 0 ? ' (Overdue)' : ''
+                                        word + ` (S${stage})` + (
+                                            isToday ? ' Today!' : 
+                                            daysUntilReview > 0 ? ` ${daysUntilReview}d` : 
+                                            daysUntilReview < 0 ? ' Overdue' : ''
                                         )
                                     );
                                 })
@@ -585,7 +629,7 @@
                     React.createElement('div', { className: "text-center text-sm text-blue-200" },
                         React.createElement('p', null, "🔊 Click the volume button to hear pronunciation • ⭐ Star your favorite words"),
                         React.createElement('p', { className: "mt-2" }, 
-                            `📚 ${vocabularyDatabase.length} words loaded • Updates automatically at midnight • 🔄 Starred words reviewed every 4-6 weeks`
+                            `📚 ${vocabularyDatabase.length} words loaded • Updates automatically at midnight • 🔄 Starred words use spaced repetition`
                         )
                     )
                 )
